@@ -69,7 +69,7 @@ public:
     std::size_t current_app_index() const;
     const app *carousel_slot_app(size_t slot) const;
     void launch_app();
-    void open_startup_app();
+    bool open_startup_app();
 
 private:
     friend struct app;
@@ -79,7 +79,7 @@ private:
     void abort_page_launch() noexcept;
     void launch_Exec_in_terminal(const std::string &exec, bool sysplause = true,
                                  TerminalHelpFactory help_factory = nullptr);
-    void launch_Exec(const std::string &exec, bool keep_root = false);
+    void launch_Exec(const std::string &exec, bool keep_root = false, bool keep_wallpaper = false);
     void applications_load();
     void refresh_home_carousel();
     void reload_home_icons();

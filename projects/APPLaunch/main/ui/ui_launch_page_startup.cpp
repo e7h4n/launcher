@@ -89,8 +89,7 @@ void UILaunchPage::load_home_screen()
 
 void UILaunchPage::finish_startup_delay()
 {
-    show_home_screen();
-    if (launch_) launch_->open_startup_app();
+    if (!launch_ || !launch_->open_startup_app()) show_home_screen();
 }
 
 void UILaunchPage::stop_startup_presentation()

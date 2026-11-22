@@ -51,19 +51,16 @@ void Launch::bind_ui()
     esc_hold_hint_controller().set_force_home_callback(esc_force_home_cb, this);
 }
 
-void Launch::open_startup_app()
+bool Launch::open_startup_app()
 {
-    if (!launcher_open_okou_on_start()) return;
-    int index = 0;
+    if (!launcher_open_okou_on_start()) return false;
     for (const auto &item : app_list) {
         if (item.Exec == "/usr/bin/okou-zero") {
-            current_app = index;
-            refresh_home_carousel();
-            launch_app();
-            return;
+            launch_Exec(item.Exec, false, true);
+            return true;
         }
-        ++index;
     }
+    return false;
 }
 
 void Launch::launch_app()
@@ -162,16 +159,16 @@ void Launch::launch_Exec_in_terminal(const std::string &exec, bool sysplause,
     p->exec(exec);
 }
 
-void Launch::launch_Exec(const std::string &exec, bool keep_root)
+void Launch::launch_Exec(const std::string &exec, bool keep_root, bool keep_wallpaper)
 {
     SLOGI("Launching external app: %s (keep_root=%d)", exec.c_str(), keep_root);
-    ui_loading::show("Loading...");
+    if (!keep_wallpaper) ui_loading::show("Loading...");
     lv_disp_t *disp = lv_disp_get_default();
     lv_indev_t *indev = lv_indev_get_next(nullptr);
     ui_screensaver_set_foreground(0);
     LVGL_RUN_FLAGE = 0;
     if (indev) lv_indev_set_group(indev, nullptr);
-    lv_refr_now(disp);
+    if (!keep_wallpaper) lv_refr_now(disp);
     // External apps own the framebuffer exclusively. Keep process supervision
     // active in the backend, but stop every Launcher timer/flush until the
     // child exits; drawing an LVGL toast here would overwrite the child UI.

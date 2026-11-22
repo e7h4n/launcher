@@ -10,7 +10,7 @@ install -Dm755 "$binary" "$stage/usr/share/APPLaunch/bin/M5CardputerZero-APPLaun
 install -d "$stage/DEBIAN"
 cat > "$stage/DEBIAN/control" <<'EOF'
 Package: applaunch-okou
-Version: 0.6.105+okou2
+Version: 0.6.105+okou3
 Architecture: arm64
 Depends: applaunch (= 0.6.105)
 Maintainer: Okou <engineering@okou.ai>
