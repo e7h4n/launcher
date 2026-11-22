@@ -6,6 +6,7 @@
 
 #include "ui_launch_page.h"
 
+#include "launch.h"
 #include "launcher_platform.hpp"
 #include "lvgl/src/widgets/gif/lv_gif.h"
 #include "sample_log.h"
@@ -49,7 +50,7 @@ void UILaunchPage::load_home_screen()
     startup_logo_scr_ = lv_obj_create(nullptr);
     if (!startup_logo_scr_) {
         stop_startup_delay();
-        show_home_screen();
+        finish_startup_delay();
         return;
     }
     lv_obj_add_event_cb(startup_logo_scr_, on_owned_obj_deleted, LV_EVENT_DELETE, this);
@@ -59,7 +60,7 @@ void UILaunchPage::load_home_screen()
     if (!logo) {
         release_startup_screen(startup_logo_scr_);
         stop_startup_delay();
-        show_home_screen();
+        finish_startup_delay();
         return;
     }
     lv_img_set_src(logo, startup_logo_path_.data());
@@ -89,6 +90,7 @@ void UILaunchPage::load_home_screen()
 void UILaunchPage::finish_startup_delay()
 {
     show_home_screen();
+    if (launch_) launch_->open_startup_app();
 }
 
 void UILaunchPage::stop_startup_presentation()

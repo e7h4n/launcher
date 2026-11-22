@@ -322,6 +322,18 @@ bool populate_launcher_children(Tree &tree, const NodeIter &parent)
 {
 #ifdef LAUNCHER_BUILD
     tree.erase_children(parent);
+    SettingEntry startup{"Open Okou on boot", SettingApiCallBackFunc{[](int command, void *data) {
+        if (command == SettingApiActivate) {
+            launcher_set_open_okou_on_start(!launcher_open_okou_on_start());
+        } else if (command == SettingApiReadFlag && data) {
+            *static_cast<bool *>(data) = launcher_open_okou_on_start();
+        } else if (command == SettingApiReadFlagTimeStart && data) {
+            auto &result = *static_cast<SettingApiReadFlagTimeStartData *>(data);
+            std::get<0>(result) = launcher_open_okou_on_start();
+        }
+    }}, true};
+    startup.status_read_policy = SettingStatusReadPolicy::Direct;
+    tree.append_child(parent, std::move(startup));
     std::size_t count = 0;
     const AppDescriptor *entries = launcher_app_registry_entries(&count);
     if (count > 0 && !entries) return false;

@@ -28,6 +28,9 @@ const AppDescriptor *launcher_app_registry_entries(std::size_t *count);
 bool launcher_app_registry_is_enabled(const AppDescriptor &desc);
 bool launcher_app_registry_set_enabled(const AppDescriptor &desc, bool enabled);
 
+bool launcher_open_okou_on_start();
+bool launcher_set_open_okou_on_start(bool enabled);
+
 typedef void (*LauncherAppRegistryChangedCallback)(void *user_data);
 void launcher_app_registry_set_changed_callback(LauncherAppRegistryChangedCallback callback,
                                                 void *user_data);

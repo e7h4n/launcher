@@ -69,6 +69,7 @@ public:
     std::size_t current_app_index() const;
     const app *carousel_slot_app(size_t slot) const;
     void launch_app();
+    void open_startup_app();
 
 private:
     friend struct app;

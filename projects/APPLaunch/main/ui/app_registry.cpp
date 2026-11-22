@@ -71,6 +71,22 @@ bool launcher_app_registry_set_enabled(const AppDescriptor &desc, bool enabled)
     return false;
 }
 
+bool launcher_open_okou_on_start()
+{
+    bool enabled = false;
+    cp0_signal_config_api({"GetStr", "open_okou_on_start", "0"},
+                          [&](int code, std::string value) { enabled = code == 0 && value == "1"; });
+    return enabled;
+}
+
+bool launcher_set_open_okou_on_start(bool enabled)
+{
+    bool saved = false;
+    cp0_signal_config_api({"SetManyAndSave", "open_okou_on_start", enabled ? "1" : "0"},
+                          [&](int code, std::string) { saved = code == 0; });
+    return saved;
+}
+
 void launcher_app_registry_set_changed_callback(LauncherAppRegistryChangedCallback callback,
                                                 void *user_data)
 {

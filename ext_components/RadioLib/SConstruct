@@ -9,7 +9,12 @@ with open(env["PROJECT_TOOL_S"]) as f:
     exec(f.read())
 
 if "CONFIG_RADIOLIB_COMPONENT_ENABLED" in os.environ:
-    radiolib = wget_github("https://github.com/jgromes/RadioLib.git")
+    # APPLaunch 0.6.105 uses the pre-8 SPI and SX1262 interfaces.
+    revision = "799b377f39e1f14f22fcf827e0b4daccb89d6a0e"
+    archive = "RadioLib-" + revision
+    directory = wget_zip("https://github.com/jgromes/RadioLib/archive/" + revision + ".zip",
+                         archive + ".zip")
+    radiolib = os.path.join(directory, archive)
 
     SRCS = [
         os.path.join(radiolib, "src", "Hal.cpp"),

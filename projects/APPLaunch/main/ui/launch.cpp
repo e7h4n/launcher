@@ -51,6 +51,21 @@ void Launch::bind_ui()
     esc_hold_hint_controller().set_force_home_callback(esc_force_home_cb, this);
 }
 
+void Launch::open_startup_app()
+{
+    if (!launcher_open_okou_on_start()) return;
+    int index = 0;
+    for (const auto &item : app_list) {
+        if (item.Exec == "/usr/bin/okou-zero") {
+            current_app = index;
+            refresh_home_carousel();
+            launch_app();
+            return;
+        }
+        ++index;
+    }
+}
+
 void Launch::launch_app()
 {
     const app *selected = app_at_index(current_app);
