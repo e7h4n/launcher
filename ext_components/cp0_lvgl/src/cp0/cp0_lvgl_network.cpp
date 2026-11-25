@@ -19,9 +19,13 @@
 #include <cerrno>
 #include <cctype>
 #include <chrono>
-#include <condition_variable>
+#include <fcntl.h>
+#include <poll.h>
+#include <sys/eventfd.h>
+#include <unistd.h>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <functional>
 #include <list>
 #include <memory>
@@ -84,15 +88,25 @@ public:
     WifiSystem()
     {
         update_status_cache();
-        worker_ = std::thread([this]() { poll_loop(); });
+        stop_fd_ = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+        try {
+            worker_ = std::thread([this]() { poll_loop(); });
+        } catch (...) {
+            if (stop_fd_ >= 0) close(stop_fd_);
+            throw;
+        }
     }
 
-    ~WifiSystem() { stop(); }
+    ~WifiSystem() {
+        stop();
+        if (stop_fd_ >= 0) close(stop_fd_);
+    }
 
     void stop() noexcept
     {
-        running_.store(false);
-        wake_.notify_all();
+        if (running_.exchange(false) && stop_fd_ >= 0) {
+            while (eventfd_write(stop_fd_, 1) < 0 && errno == EINTR) {}
+        }
         if (worker_.joinable()) worker_.join();
     }
 
@@ -477,17 +491,40 @@ private:
     cp0_wifi_status_t cache_{};
     std::thread worker_;
     std::atomic<bool> running_{true};
-    std::condition_variable wake_;
-    std::mutex wake_mutex_;
+    int stop_fd_ = -1;
 
     void poll_loop()
     {
+        // The backlight core notifies actual_brightness on both Launcher and
+        // external-app brightness writes. A dark display needs no status timer.
+        int display = open("/sys/class/backlight/backlight/actual_brightness", O_RDONLY | O_CLOEXEC);
+        bool first = true;  // The constructor populated the initial cache synchronously.
         while (running_.load()) {
-            update_status_cache();
-            std::unique_lock<std::mutex> lock(wake_mutex_);
-            wake_.wait_for(lock, std::chrono::seconds(3),
-                           [this] { return !running_.load(); });
+            char brightness[16]{};
+            bool lit = true;
+            if (display >= 0) {
+                if (pread(display, brightness, sizeof(brightness) - 1, 0) > 0) {
+                    lit = std::strtol(brightness, nullptr, 10) > 0;
+                } else {
+                    close(display);
+                    display = -1;
+                }
+            }
+            if (lit && !first) update_status_cache();
+            first = false;
+            pollfd inputs[] = {{stop_fd_, POLLIN, 0}, {display, POLLPRI, 0}};
+            const int timeout = lit || stop_fd_ < 0 ? 3000 : -1;
+            int result;
+            do {
+                result = poll(inputs, 2, timeout);
+            } while (result < 0 && errno == EINTR && running_.load());
+            if (result < 0 || inputs[0].revents) break;
+            if (inputs[1].revents & (POLLNVAL | POLLHUP)) {
+                close(display);
+                display = -1;
+            }
         }
+        if (display >= 0) close(display);
     }
 
     void update_status_cache()
