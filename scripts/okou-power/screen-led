@@ -1,0 +1,21 @@
+#!/bin/sh
+# Mirror display sleep on the red CM0 indicator only while it belongs to actpwr.
+set -eu
+led=/sys/class/leds/ACT
+backlight=/sys/class/backlight/backlight/brightness
+saved=/run/okou-cardputer-act-blanked
+[ -r "$backlight" ] && [ -w "$led/trigger" ] || exit 0
+exec 9>/run/okou-cardputer-act.lock
+flock -x 9
+if [ "${1:-}" != restore ] && [ "$(cat "$backlight")" -eq 0 ]; then
+    if grep -Fq '[actpwr]' "$led/trigger"; then
+        touch "$saved"
+        echo none > "$led/trigger"
+        echo 0 > "$led/brightness"
+    fi
+elif [ -e "$saved" ]; then
+    if grep -Fq '[none]' "$led/trigger"; then
+        echo actpwr > "$led/trigger"
+    fi
+    rm -f "$saved"
+fi

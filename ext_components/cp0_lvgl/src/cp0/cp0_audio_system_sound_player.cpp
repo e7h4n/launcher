@@ -50,8 +50,8 @@ class Cp0SystemSoundPlayer::Impl
 {
 public:
     Impl()
-        : worker_(&Impl::worker_loop, this)
     {
+        worker_ = std::thread(&Impl::worker_loop, this);
     }
 
     ~Impl()
@@ -256,12 +256,29 @@ private:
                         break;
                     }
 
-                    wake_.wait(lock);
+                    if (!engine_initialized_) {
+                        wake_.wait(lock);
+                    } else if (!wake_.wait_for(lock, std::chrono::seconds(2),
+                                               [this] { return stopping_ || !commands_.empty(); })) {
+                        break;
+                    }
                 }
                 if (stopping_) break;
             }
 
-            if (!have_command) continue;
+            if (!have_command) {
+                // Keep rapid key sounds warm and let long cues finish before releasing the sink.
+                bool playing = false;
+                for (std::size_t i = 0; i < sounds_.size(); ++i) {
+                    if (sound_initialized_[i] && ma_sound_is_playing(&sounds_[i]) &&
+                        !ma_sound_at_end(&sounds_[i])) {
+                        playing = true;
+                        break;
+                    }
+                }
+                if (!playing) close_engine();
+                continue;
+            }
 
             switch (command.type) {
             case CommandType::Play:

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Package only the customized executable. The base package owns the device assets.
+# Package the customized executable and handheld power policy. The base package owns the assets.
 set -eu
 binary=${1:?expected path to the built launcher}
 output=${2:?expected output deb path}
@@ -7,10 +7,13 @@ stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 # fb_load matches /proc/PID/exe against this exact path before releasing the LCD.
 install -Dm755 "$binary" "$stage/usr/share/APPLaunch/bin/M5CardputerZero-APPLaunch"
+power_dir=$(dirname "$0")/okou-power
+install -Dm644 "$power_dir/90-okou-cardputer-power.rules" "$stage/usr/lib/udev/rules.d/90-okou-cardputer-power.rules"
+install -Dm755 "$power_dir/screen-led" "$stage/usr/libexec/okou-cardputer-screen-led"
 install -d "$stage/DEBIAN"
 cat > "$stage/DEBIAN/control" <<'EOF'
 Package: applaunch-okou
-Version: 0.6.105+okou3
+Version: 0.6.105+okou4
 Architecture: arm64
 Depends: applaunch (= 0.6.105)
 Maintainer: Okou <engineering@okou.ai>
@@ -42,5 +45,24 @@ if [ "${restore:-no}" = yes ]; then
     fi
 fi
 EOF
+cat > "$stage/DEBIAN/postinst" <<'EOF'
+#!/bin/sh
+set -eu
+if [ "$1" = configure ] && [ -d /run/udev ]; then
+    udevadm control --reload
+    if [ -d /sys/bus/usb/devices/1-1.1 ]; then
+        udevadm trigger --action=change /sys/bus/usb/devices/1-1.1
+    fi
+    /usr/libexec/okou-cardputer-screen-led
+fi
+EOF
+cat > "$stage/DEBIAN/prerm" <<'EOF'
+#!/bin/sh
+set -eu
+if [ "$1" = remove ]; then
+    /usr/libexec/okou-cardputer-screen-led restore
+fi
+EOF
+chmod 755 "$stage/DEBIAN/postinst" "$stage/DEBIAN/prerm"
 chmod 755 "$stage/DEBIAN/preinst" "$stage/DEBIAN/postrm"
 dpkg-deb --root-owner-group --build "$stage" "$output"
