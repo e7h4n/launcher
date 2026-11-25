@@ -10,12 +10,14 @@ install -Dm755 "$binary" "$stage/usr/share/APPLaunch/bin/M5CardputerZero-APPLaun
 power_dir=$(dirname "$0")/okou-power
 install -Dm644 "$power_dir/90-okou-cardputer-power.rules" "$stage/usr/lib/udev/rules.d/90-okou-cardputer-power.rules"
 install -Dm755 "$power_dir/screen-led" "$stage/usr/libexec/okou-cardputer-screen-led"
+install -Dm755 "$power_dir/standby.py" "$stage/usr/libexec/okou-cardputer-standby"
+install -Dm644 "$power_dir/okou-cardputer-standby.service" "$stage/usr/lib/systemd/system/okou-cardputer-standby.service"
 install -d "$stage/DEBIAN"
 cat > "$stage/DEBIAN/control" <<'EOF'
 Package: applaunch-okou
-Version: 0.6.105+okou5
+Version: 0.6.105+okou6
 Architecture: arm64
-Depends: applaunch (= 0.6.105)
+Depends: applaunch (= 0.6.105), python3, libdrm2, systemd, udev
 Maintainer: Okou <engineering@okou.ai>
 Description: Cardputer Zero launcher with optional Okou startup
 EOF
@@ -44,21 +46,55 @@ if [ "${restore:-no}" = yes ]; then
         dpkg-divert --package applaunch-okou --remove --rename --divert "$launcher.distrib" "$launcher"
     fi
 fi
+case "$1" in
+    remove|purge|disappear|abort-install)
+        if [ -d /run/udev ]; then udevadm control --reload; fi
+        if [ -d /run/systemd/system ]; then systemctl daemon-reload; fi
+        rm -f /run/okou-cardputer-standby-inhibit
+        ;;
+    upgrade)
+        # A downgrade may replace this package with one that has no standby unit.
+        if [ ! -f /usr/lib/systemd/system/okou-cardputer-standby.service ]; then
+            rm -f /run/okou-cardputer-standby-inhibit
+        fi
+        ;;
+esac
 EOF
 cat > "$stage/DEBIAN/postinst" <<'EOF'
 #!/bin/sh
 set -eu
-if [ "$1" = configure ] && [ -d /run/udev ]; then
+case "$1" in
+    configure|abort-upgrade|abort-remove|abort-deconfigure) ;;
+    *) exit 0 ;;
+esac
+rm -f /run/okou-cardputer-standby-inhibit
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload
+fi
+if [ -d /run/udev ]; then
     udevadm control --reload
     if [ -d /sys/bus/usb/devices/1-1.1 ]; then
         udevadm trigger --action=change /sys/bus/usb/devices/1-1.1
     fi
-    /usr/libexec/okou-cardputer-screen-led
+    if [ -d /sys/class/backlight/backlight ]; then
+        udevadm trigger --action=change /sys/class/backlight/backlight
+    fi
 fi
 EOF
 cat > "$stage/DEBIAN/prerm" <<'EOF'
 #!/bin/sh
 set -eu
+case "$1" in
+    remove|upgrade|deconfigure)
+        if [ -d /run/systemd/system ]; then
+            # Backlight uevents can still arrive until dpkg replaces the rules.
+            touch /run/okou-cardputer-standby-inhibit
+            systemctl stop okou-cardputer-standby.service ||
+                [ "$(systemctl show -p ActiveState --value okou-cardputer-standby.service)" = failed ]
+        fi
+        /usr/libexec/okou-cardputer-standby restore
+        ;;
+esac
 if [ "$1" = remove ]; then
     /usr/libexec/okou-cardputer-screen-led restore
 fi

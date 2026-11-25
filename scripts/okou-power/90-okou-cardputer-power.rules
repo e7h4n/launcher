@@ -1,3 +1,7 @@
 # The built-in Ethernet adapter sits on downstream port 1 of the internal USB hub.
 ACTION=="add|bind|change", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", KERNEL=="1-1.1", ATTR{idVendor}=="0fe6", ATTR{idProduct}=="9900", TEST=="power/control", ATTR{power/control}="auto"
 ACTION=="add|change", SUBSYSTEM=="backlight", KERNEL=="backlight", RUN+="/usr/libexec/okou-cardputer-screen-led"
+# Queue transitions outside the udev worker. Stopping the oneshot also cancels its sleep delay.
+ACTION=="add|change", SUBSYSTEM=="backlight", KERNEL=="backlight", ATTR{actual_brightness}=="0", RUN+="/usr/bin/systemctl --no-block start okou-cardputer-standby.service"
+ACTION=="add|change", SUBSYSTEM=="backlight", KERNEL=="backlight", ATTR{actual_brightness}!="0", RUN+="/usr/bin/systemctl --no-block stop okou-cardputer-standby.service"
+ACTION=="remove", SUBSYSTEM=="backlight", KERNEL=="backlight", RUN+="/usr/bin/systemctl --no-block stop okou-cardputer-standby.service"

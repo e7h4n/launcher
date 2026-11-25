@@ -1,0 +1,15 @@
+[Unit]
+Description=Cardputer Zero screen-off power settings
+ConditionPathExists=!/run/okou-cardputer-standby-inhibit
+# Repeated short display toggles must not suppress the next long standby.
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+RuntimeDirectory=okou-cardputer-standby
+# Keep ownership records if a restore fails. /run is cleared on boot.
+RuntimeDirectoryPreserve=yes
+ExecStartPre=/usr/bin/sleep 30
+ExecStart=/usr/libexec/okou-cardputer-standby enter
+ExecStopPost=/usr/libexec/okou-cardputer-standby restore
