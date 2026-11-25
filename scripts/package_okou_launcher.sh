@@ -13,7 +13,7 @@ install -Dm755 "$power_dir/screen-led" "$stage/usr/libexec/okou-cardputer-screen
 install -d "$stage/DEBIAN"
 cat > "$stage/DEBIAN/control" <<'EOF'
 Package: applaunch-okou
-Version: 0.6.105+okou4
+Version: 0.6.105+okou5
 Architecture: arm64
 Depends: applaunch (= 0.6.105)
 Maintainer: Okou <engineering@okou.ai>
